@@ -3,7 +3,7 @@ from django.utils.text import slugify
 from django.contrib.auth.models import User
 import os
 import secrets
-
+import uuid
 
 class UserProfile(models.Model):
     """Extended user profile with additional fields"""
@@ -283,22 +283,28 @@ class NotificationPreference(models.Model):
         verbose_name_plural = 'Notification Preferences'
 
 
-class ListeningHistory(models.Model):
+class ListeningSession(models.Model):
     """Track listening history for users"""
 
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='listening_history')
-    track = models.ForeignKey(Track, on_delete=models.CASCADE, related_name='listening_history')
-    played_at = models.DateTimeField(auto_now_add=True)
-    play_duration = models.IntegerField(default=0, help_text="Duration played in seconds")
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='listening_session')
+    track = models.ForeignKey(Track, on_delete=models.CASCADE, related_name='listening_session')
+
+    started_at = models.DateTimeField(auto_now_add=True)
+    last_position = models.IntegerField(default=0)
+
+    duration_listened = models.IntegerField(default=0)
+
+    completed = models.BooleanField(default=False)
+
+    session_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
 
     def __str__(self):
         return f"{self.user.username} - {self.track.title}"
 
     class Meta:
-        ordering = ['-played_at']
+        ordering = ['-started_at']
         indexes = [
-            models.Index(fields=['user', '-played_at']),
-            models.Index(fields=['track', '-played_at']),
+            models.Index(fields=['user', 'track']),
         ]
 
 

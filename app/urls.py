@@ -27,7 +27,8 @@ from .views import (
     clear_history_view,
     listening_history_view,
     user_stats_view,
-    track_play_view,
+    # track_play_view,
+    
     # Library views
     saved_albums_view,
     save_album_view,
@@ -35,6 +36,10 @@ from .views import (
     follow_artist_view,
     favorite_tracks_view,
     favorite_track_view,
+    # Music tracking
+    start_listening,
+    update_progress,
+    complete_session
 )
 
 urlpatterns = [
@@ -67,8 +72,11 @@ urlpatterns = [
     path("albums/", AlbumListView.as_view()),
     path("albums/<slug:slug>/", AlbumDetailView.as_view()),
     path("tracks/", TrackListView.as_view()),
-    path("tracks/<int:pk>/play/", track_play_view, name="track_play"),
     path("search/", SearchView.as_view()),
+
+    path("listening/start/", start_listening),
+    path("listening/progress/", update_progress),
+    path("listening/complete/", complete_session),
 
     # Library endpoints
     path("library/saved-albums/", saved_albums_view, name="saved_albums"),
@@ -78,3 +86,4 @@ urlpatterns = [
     path("library/favorite-tracks/", favorite_tracks_view, name="favorite_tracks"),
     path("library/favorite-tracks/<int:pk>/", favorite_track_view, name="favorite_track"),
 ]
+    # path("tracks/<int:pk>/play/", track_play_view, name="track_play"),

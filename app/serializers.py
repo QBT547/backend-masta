@@ -5,7 +5,7 @@ from django.contrib.auth.password_validation import validate_password
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.conf import settings
 
-from .models import Genre, Artist, Track, Album, UserProfile, UserPreferences, NotificationPreference, ListeningHistory, SavedAlbum, FollowedArtist, FavoriteTrack
+from .models import Genre, Artist, Track, Album, UserProfile, UserPreferences, NotificationPreference, ListeningSession, SavedAlbum, FollowedArtist, FavoriteTrack
 
 User = get_user_model()
 
@@ -313,26 +313,45 @@ class ResetPasswordSerializer(serializers.Serializer):
 # Settings Serializers
 # =============================================================================
 
-class ListeningHistorySerializer(ModelSerializer):
-    """Serializer for ListeningHistory model"""
+class ListeningSessionSerializer(ModelSerializer):
+    """Serializer for ListeningSession model"""
 
     track_title = serializers.CharField(source='track.title', read_only=True)
     track_duration = serializers.IntegerField(source='track.duration', read_only=True)
+
     album_title = serializers.CharField(source='track.album.title', read_only=True)
     artist_name = serializers.CharField(source='track.album.artist.name', read_only=True)
+
     album_cover = serializers.ImageField(source='track.album.cover', read_only=True)
+
     artist_slug = serializers.SlugField(source='track.album.artist.slug', read_only=True)
     album_slug = serializers.SlugField(source='track.album.slug', read_only=True)
+
     track_file = serializers.FileField(source='track.file', read_only=True)
     track_yt_id = serializers.CharField(source='track.yt_id', read_only=True)
 
     class Meta:
-        model = ListeningHistory
-        fields = ('id', 'track', 'track_title', 'track_duration', 'album_title',
-                  'artist_name', 'album_cover', 'artist_slug', 'album_slug',
-                  'played_at', 'play_duration', 'track_file', 'track_yt_id')
+        model = ListeningSession
+        fields = (
+            'id',
+            'track',
+            'track_title',
+            'track_duration',
+            'album_title',
+            'artist_name',
+            'album_cover',
+            'artist_slug',
+            'album_slug',
+            'track_file',
+            'track_yt_id',
+            'started_at',
+            'last_position',
+            'duration_listened',
+            'completed',
+            'session_id'
+        )
 
-
+        
 class UserStatsSerializer(serializers.Serializer):
     """Serializer for user listening statistics"""
 

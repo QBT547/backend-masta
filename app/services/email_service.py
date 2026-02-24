@@ -35,6 +35,7 @@ class EmailService:
 
         # Generate verification URL
         verification_url = f"{settings.FRONTEND_URL}/verify-email/{token.token}/"
+        # print(verification_url)
 
         # Render email
         subject = "Verify your TerminalTunes account"
@@ -56,7 +57,7 @@ class EmailService:
             html_message=html_message,
             fail_silently=False,
         )
-
+        # print('return token:',token)
         return token
 
     @staticmethod
@@ -75,8 +76,8 @@ class EmailService:
                 token=token_str,
                 is_used=False
             )
-
-            if not verification_token.is_valid():
+            # 'bool' object is not callable NOT .is_valid()
+            if not verification_token.is_valid:
                 return {'valid': False, 'message': 'Token expired'}
 
             # Activate user and mark email as verified
@@ -160,7 +161,8 @@ class EmailService:
                 is_used=False
             )
 
-            if not reset_token.is_valid():
+            # 'bool' object is not callable NOT .is_valid()
+            if not reset_token.is_valid:
                 return {'valid': False, 'message': 'Token expired'}
 
             return {'valid': True, 'user': reset_token.user}

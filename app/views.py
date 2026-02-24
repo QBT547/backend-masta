@@ -11,7 +11,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from django.db.models import Q, Count, Sum
 from django.contrib.auth import get_user_model
 
-from .models import Genre, Artist, Track, Album, ListeningHistory, UserPreferences, NotificationPreference, SavedAlbum, FollowedArtist, FavoriteTrack
+from .models import Genre, Artist, Track, Album, ListeningSession, UserPreferences, NotificationPreference, SavedAlbum, FollowedArtist, FavoriteTrack
 from .serializers import (
     GenreSerializer,
     ArtistSerializer,
@@ -28,7 +28,7 @@ from .serializers import (
     ChangePasswordSerializer,
     UpdateProfileSerializer,
     ResetPasswordSerializer,
-    ListeningHistorySerializer,
+    ListeningSessionSerializer,
     UserStatsSerializer,
     SavedAlbumSerializer,
     FollowedArtistSerializer,
@@ -39,19 +39,19 @@ from .services.email_service import EmailService
 
 User = get_user_model()
 
-
+# Items per page
 class StandardResultsSetPagination(PageNumberPagination):
     page_size = 20
     page_size_query_param = 'page_size'
     max_page_size = 100
 
-
+# API endpoint to retrieve the list of all music genres
 class GenreListView(ListAPIView):
     queryset = Genre.objects.all()
     serializer_class = GenreSerializer
     permission_classes = [AllowAny]
 
-
+# API endpoint to retrieve the list of all artists
 class ArtistListView(ListAPIView):
     queryset = Artist.objects.all()
     serializer_class = ArtistSerializer
@@ -63,7 +63,7 @@ class ArtistListView(ListAPIView):
         order_by = self.request.query_params.get('order_by', 'id')
         return queryset.order_by(order_by)
 
-
+# Retrieve details for a specific artist
 class ArtistDetailView(RetrieveAPIView):
     queryset = Artist.objects.prefetch_related(
         'albums__tracks',
@@ -73,7 +73,7 @@ class ArtistDetailView(RetrieveAPIView):
     permission_classes = [AllowAny]
     lookup_field = 'slug'
 
-
+# API endpoint to retrieve the list of all albums
 class AlbumListView(ListAPIView):
     queryset = Album.objects.select_related('artist').all()
     serializer_class = AlbumListSerializer
@@ -85,14 +85,14 @@ class AlbumListView(ListAPIView):
         order_by = self.request.query_params.get('order_by', 'id')
         return queryset.order_by(order_by)
 
-
+# Retrieve details for a specific album
 class AlbumDetailView(RetrieveAPIView):
     queryset = Album.objects.select_related('artist').prefetch_related('tracks').all()
     serializer_class = AlbumDetailSerializer
     permission_classes = [AllowAny]
     lookup_field = 'slug'
 
-
+# API endpoint to retrieve the list of all tracks
 class TrackListView(ListAPIView):
     queryset = Track.objects.select_related('album__artist').all()
     serializer_class = TrackSerializer
@@ -423,8 +423,8 @@ def download_data_view(request):
     user_serializer = UserSettingsSerializer(user)
 
     # Get listening history
-    history = ListeningHistory.objects.filter(user=user)
-    history_serializer = ListeningHistorySerializer(history, many=True)
+    history = ListeningSession.objects.filter(user=user)
+    history_serializer = ListeningSessionSerializer(history, many=True)
 
     data = {
         'user': user_serializer.data,
@@ -442,80 +442,208 @@ def download_data_view(request):
 def clear_history_view(request):
     """Clear all listening history for the user"""
     user = request.user
-    deleted_count = ListeningHistory.objects.filter(user=user).delete()[0]
+    deleted_count = ListeningSession.objects.filter(user=user).delete()[0]
     return Response({
         'message': f'{deleted_count} listening history entries cleared'
     }, status=status.HTTP_200_OK)
 
 
+# @api_view(['GET'])
+# @permission_classes([IsAuthenticated])
+# def listening_history_view(request):
+#     """Get user's listening history"""
+#     user = request.user
+#     history = ListeningSession.objects.filter(user=user).select_related(
+#         'track__album__artist'
+#     )[:100]  # Limit to last 100 entries
+#     serializer = ListeningSessionSerializer(history, many=True)
+#     return Response(serializer.data)
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def listening_history_view(request):
     """Get user's listening history"""
-    user = request.user
-    history = ListeningHistory.objects.filter(user=user).select_related(
-        'track__album__artist'
-    )[:100]  # Limit to last 100 entries
-    serializer = ListeningHistorySerializer(history, many=True)
+
+    history = (
+        ListeningSession.objects
+        .filter(user=request.user)
+        .select_related('track__album__artist')
+        .order_by('-started_at')[:100]# Limit to last 100 entries
+    )
+
+    serializer = ListeningSessionSerializer(history, many=True)
     return Response(serializer.data)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def start_listening(request):
+
+    track_id = request.data.get("track_id")
+
+    if not track_id:
+        return Response({"error": "track_id required"}, status=400)
+
+    try:
+        track = Track.objects.get(id=track_id)
+    except Track.DoesNotExist:
+        return Response({"error": "track not found"}, status=404)
+
+    session = ListeningSession.objects.create(
+        user=request.user,
+        track=track
+    )
+
+    return Response({
+        "session_id": session.session_id,
+        "started_at": session.started_at
+    })
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def update_progress(request):
+
+    session_id = request.data.get("session_id")
+    position = request.data.get("position")
+
+    if session_id is None or position is None:
+        return Response({"error": "missing data"}, status=400)
+
+    try:
+        position = int(position)
+    except ValueError:
+        return Response({"error": "invalid position"}, status=400)
+
+    try:
+        session = ListeningSession.objects.get(
+            session_id=session_id,
+            user=request.user
+        )
+    except ListeningSession.DoesNotExist:
+        return Response({"error": "session not found"}, status=404)
+
+    if position > session.last_position:
+        session.duration_listened += position - session.last_position
+        session.last_position = position
+        session.save(update_fields=["duration_listened", "last_position"])
+
+    return Response({"status": "updated"})
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def complete_session(request):
+
+    session_id = request.data.get("session_id")
+
+    if not session_id:
+        return Response({"error": "session_id required"}, status=400)
+
+    try:
+        session = ListeningSession.objects.select_related("track").get(
+            session_id=session_id,
+            user=request.user
+        )
+    except ListeningSession.DoesNotExist:
+        return Response({"error": "session not found"}, status=404)
+
+    if not session.completed:
+        session.completed = True
+        session.save(update_fields=["completed"])
+
+        # count listen if listened enough
+        if session.duration_listened >= 30:
+            track = session.track
+            track.listens = (track.listens or 0) + 1
+            track.save(update_fields=["listens"])
+
+    return Response({"status": "completed"})
 
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def user_stats_view(request):
-    """Get user listening statistics"""
-    user = request.user
 
-    # Get listening history
-    history = ListeningHistory.objects.filter(user=user)
+    history = ListeningSession.objects.filter(user=request.user)
 
-    # Calculate stats
-    tracks_played = history.count()
+    tracks_played = history.filter(duration_listened__gte=30).count()
 
-    # Sum play duration and convert to hours
-    total_duration = history.aggregate(total=Sum('play_duration'))['total'] or 0
+    total_duration = history.aggregate(
+        total=Sum('duration_listened')
+    )['total'] or 0
+
     hours_streamed = round(total_duration / 3600, 1)
 
-    # Count distinct artists from listening history
-    artists_discovered = history.values('track__album__artist').distinct().count()
-
-    # Placeholder for playlists (to be implemented later)
-    playlists_created = 0
+    artists_discovered = history.values(
+        'track__album__artist'
+    ).distinct().count()
 
     data = {
         'tracks_played': tracks_played,
         'hours_streamed': hours_streamed,
-        'playlists_created': playlists_created,
+        'playlists_created': 0,
         'artists_discovered': artists_discovered,
     }
 
-    serializer = UserStatsSerializer(data)
-    return Response(serializer.data)
+    return Response(data)
+
+# @api_view(['GET'])
+# @permission_classes([IsAuthenticated])
+# def user_stats_view(request):
+#     """Get user listening statistics"""
+#     user = request.user
+
+#     # Get listening history
+#     history = ListeningSession.objects.filter(user=user)
+
+#     # Calculate stats
+#     tracks_played = history.count()
+
+#     # Sum play duration and convert to hours
+#     total_duration = history.aggregate(total=Sum('duration_listened'))['total'] or 0
+#     hours_streamed = round(total_duration / 3600, 1)
+
+#     # Count distinct artists from listening history
+#     artists_discovered = history.values('track__album__artist').distinct().count()
+
+#     # Placeholder for playlists (to be implemented later)
+#     playlists_created = 0
+
+#     data = {
+#         'tracks_played': tracks_played,
+#         'hours_streamed': hours_streamed,
+#         'playlists_created': playlists_created,
+#         'artists_discovered': artists_discovered,
+#     }
+
+#     serializer = UserStatsSerializer(data)
+#     return Response(serializer.data)
 
 
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def track_play_view(request, pk):
-    """Track when a user plays a track - creates listening history entry"""
-    user = request.user
+# @api_view(['POST'])
+# @permission_classes([IsAuthenticated])
+# def track_play_view(request, pk):
+#     """Track when a user plays a track - creates listening history entry"""
+#     user = request.user
 
-    try:
-        track = Track.objects.get(pk=pk)
-    except Track.DoesNotExist:
-        return Response({'error': 'Track not found'}, status=status.HTTP_404_NOT_FOUND)
+#     try:
+#         track = Track.objects.get(pk=pk)
+#     except Track.DoesNotExist:
+#         return Response({'error': 'Track not found'}, status=status.HTTP_404_NOT_FOUND)
 
-    # Create listening history entry
-    ListeningHistory.objects.create(
-        user=user,
-        track=track,
-        play_duration=0  # Will be updated if duration tracking is added later
-    )
+#     # Create listening history entry
+#     ListeningSession.objects.create(
+#         user=user,
+#         track=track,
+#         play_duration=0  # Will be updated if duration tracking is added later
+#     )
 
-    # Increment track listen count
-    track.listens = (track.listens or 0) + 1
-    track.save(update_fields=['listens'])
+#     # Increment track listen count
+#     track.listens = (track.listens or 0) + 1
+#     track.save(update_fields=['listens'])
 
-    return Response({'message': 'Play tracked'}, status=status.HTTP_201_CREATED)
+#     return Response({'message': 'Play tracked'}, status=status.HTTP_201_CREATED)
 
 
 @api_view(['GET'])

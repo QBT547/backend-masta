@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.utils.html import format_html
 from .models import (Artist, Album, Track, Genre,
                     UserProfile, EmailVerificationToken, PasswordResetToken,
-                    UserPreferences, NotificationPreference, ListeningHistory,
+                    UserPreferences, NotificationPreference, ListeningSession,
                     SavedAlbum, FollowedArtist,FavoriteTrack)
 
 @admin.register(UserProfile)
@@ -118,11 +118,12 @@ class NotificationPreferenceAdmin(admin.ModelAdmin):
     list_filter = ['email_new_releases','email_recommendations','app_playlist_updates','app_friend_activity','app_concert_alerts']
 
 
-@admin.register(ListeningHistory)
-class ListeningHistoryAdmin(admin.ModelAdmin):
-    list_display = ['id','user','track__title','played_at','play_duration']
+@admin.register(ListeningSession)
+class ListeningSessionAdmin(admin.ModelAdmin):
+    list_display = ['id','user','track__title','started_at','last_position','duration_listened','session_id']
     list_display_links = ['id','user']
     search_fields = ['user__username','user__email','track__title']
+    list_filter = ['completed']
 
 @admin.register(SavedAlbum)
 class SavedAlbumAdmin(admin.ModelAdmin):
