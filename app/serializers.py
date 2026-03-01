@@ -208,6 +208,7 @@ class RegisterSerializer(ModelSerializer):
         model = User
         fields = ('username', 'email', 'password', 'password_confirm',
                   'first_name', 'last_name')
+        ref_name = "CustomRegisterSerializer"
 
     def validate(self, attrs):
         if attrs['password'] != attrs['password_confirm']:

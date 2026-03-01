@@ -60,6 +60,8 @@ INSTALLED_APPS = [
     'app'
 ]
 
+SITE_ID = 1
+
 # Disable rest_framework.authtoken for dj-rest-auth (using JWT instead)
 REST_AUTH_TOKEN_MODEL = None
 
@@ -262,3 +264,7 @@ JAZZMIN_SETTINGS = {
     "default_icon_parents": "fas fa-chevron-circle-right",
     "default_icon_children": "fas fa-circle",
 }
+
+LOGIN_REDIRECT_URL = "http://localhost:3000/auth/callback"
+LOGOUT_REDIRECT_URL = "http://localhost:3000/login"
+SOCIALACCOUNT_ADAPTER = "app.adapters.SocialLoginAdapter"

@@ -500,65 +500,65 @@ def start_listening(request):
     })
 
 
-@api_view(["POST"])
-@permission_classes([IsAuthenticated])
-def update_progress(request):
+# @api_view(["POST"])
+# @permission_classes([IsAuthenticated])
+# def update_progress(request):
 
-    session_id = request.data.get("session_id")
-    position = request.data.get("position")
+#     session_id = request.data.get("session_id")
+#     position = request.data.get("position")
 
-    if session_id is None or position is None:
-        return Response({"error": "missing data"}, status=400)
+#     if session_id is None or position is None:
+#         return Response({"error": "missing data"}, status=400)
 
-    try:
-        position = int(position)
-    except ValueError:
-        return Response({"error": "invalid position"}, status=400)
+#     try:
+#         position = int(position)
+#     except ValueError:
+#         return Response({"error": "invalid position"}, status=400)
 
-    try:
-        session = ListeningSession.objects.get(
-            session_id=session_id,
-            user=request.user
-        )
-    except ListeningSession.DoesNotExist:
-        return Response({"error": "session not found"}, status=404)
+#     try:
+#         session = ListeningSession.objects.get(
+#             session_id=session_id,
+#             user=request.user
+#         )
+#     except ListeningSession.DoesNotExist:
+#         return Response({"error": "session not found"}, status=404)
 
-    if position > session.last_position:
-        session.duration_listened += position - session.last_position
-        session.last_position = position
-        session.save(update_fields=["duration_listened", "last_position"])
+#     if position > session.last_position:
+#         session.duration_listened += position - session.last_position
+#         session.last_position = position
+#         session.save(update_fields=["duration_listened", "last_position"])
 
-    return Response({"status": "updated"})
+#     return Response({"status": "updated"})
 
 
-@api_view(["POST"])
-@permission_classes([IsAuthenticated])
-def complete_session(request):
+# @api_view(["POST"])
+# @permission_classes([IsAuthenticated])
+# def complete_session(request):
 
-    session_id = request.data.get("session_id")
+#     session_id = request.data.get("session_id")
 
-    if not session_id:
-        return Response({"error": "session_id required"}, status=400)
+#     if not session_id:
+#         return Response({"error": "session_id required"}, status=400)
 
-    try:
-        session = ListeningSession.objects.select_related("track").get(
-            session_id=session_id,
-            user=request.user
-        )
-    except ListeningSession.DoesNotExist:
-        return Response({"error": "session not found"}, status=404)
+#     try:
+#         session = ListeningSession.objects.select_related("track").get(
+#             session_id=session_id,
+#             user=request.user
+#         )
+#     except ListeningSession.DoesNotExist:
+#         return Response({"error": "session not found"}, status=404)
 
-    if not session.completed:
-        session.completed = True
-        session.save(update_fields=["completed"])
+#     if not session.completed:
+#         session.completed = True
+#         session.save(update_fields=["completed"])
 
-        # count listen if listened enough
-        if session.duration_listened >= 30:
-            track = session.track
-            track.listens = (track.listens or 0) + 1
-            track.save(update_fields=["listens"])
+#         # count listen if listened enough
+#         if session.duration_listened >= 30:
+#             track = session.track
+#             track.listens = (track.listens or 0) + 1
+#             track.save(update_fields=["listens"])
 
-    return Response({"status": "completed"})
+#     return Response({"status": "completed"})
 
 
 @api_view(['GET'])

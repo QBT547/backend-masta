@@ -38,8 +38,6 @@ from .views import (
     favorite_track_view,
     # Music tracking
     start_listening,
-    update_progress,
-    complete_session
 )
 
 urlpatterns = [
@@ -75,8 +73,6 @@ urlpatterns = [
     path("search/", SearchView.as_view()),
 
     path("listening/start/", start_listening),
-    path("listening/progress/", update_progress),
-    path("listening/complete/", complete_session),
 
     # Library endpoints
     path("library/saved-albums/", saved_albums_view, name="saved_albums"),
@@ -87,3 +83,6 @@ urlpatterns = [
     path("library/favorite-tracks/<int:pk>/", favorite_track_view, name="favorite_track"),
 ]
     # path("tracks/<int:pk>/play/", track_play_view, name="track_play"),
+    
+    # path("listening/progress/", update_progress),
+    # path("listening/complete/", complete_session),

@@ -40,6 +40,9 @@ schema_view = get_schema_view(
 urlpatterns = [
     path('api/v1/', include('app.urls')),
     path('admin/', admin.site.urls),
+    path("auth/", include("dj_rest_auth.urls")),
+    path("auth/registration/", include("dj_rest_auth.registration.urls")),
+    path("accounts/", include("allauth.urls")),
 ]
 
 if settings.DEBUG:
